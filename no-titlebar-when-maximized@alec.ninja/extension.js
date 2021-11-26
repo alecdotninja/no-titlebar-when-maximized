@@ -1,32 +1,31 @@
 const GLib = imports.gi.GLib;
 const { byteArray, mainloop } = imports;
+const { WindowClientType, WindowType } = imports.gi.Meta;
 
 function init() {
     return new Extension();
 }
 
+const MOTIF_HINTS_TITLE_BAR     = '2, 0, 1, 0, 0';
+const MOTIF_HINTS_NO_TITLE_BAR  = '2, 0, 0, 0, 0';
+
 class Extension {
-    constructor() {
-        this._internals = null;
-        
-        this._createdListener = new Listener(
-            global.display,
-            'window-created',
-            window => this._sync(window),
-        );
-
-        this._changedListener = new Listener(
-            global.window_manager,
-            'size-changed',
-            actor => this._sync(actor.get_meta_window()),
-        );
-    }
-
     enable() {
-        this._internals = new WeakMap();
+        this._trackedXIds = new WeakMap();
 
-        this._createdListener.enable();
-        this._changedListener.enable();
+        this._createdConnection =
+            connectDeferred(
+                global.display,
+                'window-created',
+                (window) => this._sync(window),
+            );
+
+        this._changedConnection =
+            connectDeferred(
+                global.window_manager,
+                'size-changed',
+                (actor) => this._sync(actor.get_meta_window()),
+            );
 
         this._forEachWindow((window) => {
             this._sync(window);
@@ -34,44 +33,17 @@ class Extension {
     }
 
     disable() {
-        this._createdListener.disable();
-        this._changedListener.disable();
+        this._createdConnection.disconnect();
+        this._changedConnection.disconnect();
 
         this._forEachWindow((window) => {
             this._restore(window);
         });
 
-        this._internals = null;
-    }
-
-    _sync(window) {
-        this._internal(window)?.sync();
-    }
-
-    _restore(window) {
-        this._internal(window, false)?.restore();
-    }
-
-    _internal(window, buildMissing = true) {
-        let internal = this._internals.get(window);
-
-        if (!internal && buildMissing) {
-            internal = this._buildInternal(window);
-            this._internals.set(window, internal);
-        }
-
-        return internal;
-    }
-
-    _buildInternal(window) {
-        const internal = new InternalWindow(window);
-
-        // Only track windows which have a title bar
-        if (!internal.titleBar) {
-            return null;
-        }
-
-        return internal;
+        // Reset all state
+        this._trackedXIds = null;
+        this._createdConnection = null;
+        this._changedConnection = null;
     }
 
     _forEachWindow(callback) {
@@ -83,98 +55,91 @@ class Extension {
             }
         }
     }
-}
 
-class InternalWindow {
-    constructor(window) {
-        this.window = window;
-        this.xId = findXIdForWindow(window);
-    }
-
-    sync() {
-        if (this.maximized) {
-            this.titleBar = false;
-        } else {
-            this.titleBar = true;
-        }
-    }
-
-    restore() {
-        // We only track windows that had a title bar
-        this.titleBar = true;
-    }
-
-    get title() {
-        return this.window.get_title();
-    }
-
-    get maximized() {
-        return this.window.get_maximized();
-    }
-
-    get titleBar() {
-        const { xId } = this;
-        return xId && getTitleBar(xId);
-    }
-
-    set titleBar(value) {
-        const { xId } = this;
+    _sync(window) {
+        const xId = this._trackedXId(window);
 
         if (!xId) {
-            throw new Error(`The visibility of the title bar can only be changed for clients using Xorg`);
+            return;
         }
 
-        return setTitleBar(xId, value);
+        if (window.get_maximized()) {
+            setMotifHints(xId, MOTIF_HINTS_NO_TITLE_BAR);
+        } else {
+            setMotifHints(xId, MOTIF_HINTS_TITLE_BAR);
+        }
+    }
+
+    _restore(window) {
+        const xId = this._trackedXId(window, false);
+
+        if (!xId) {
+            return;
+        }
+        
+        // This is the original state of the tracked window
+        setMotifHints(xId, MOTIF_HINTS_TITLE_BAR);
+    }
+
+    _trackedXId(window, buildMissing = true) {
+        let xId = this._trackedXIds.get(window);
+
+        if (xId === undefined && buildMissing) {
+            xId = this._buildTrackedXId(window);
+            this._trackedXIds.set(window, xId);
+        }
+
+        return xId;
+    }
+
+    _buildTrackedXId(window) {
+        if (
+            window.get_client_type() !== WindowClientType.X11 ||
+            window.get_window_type() !== WindowType.NORMAL
+        ) {
+            return null;
+        }
+
+        const xId = findXIdForWindow(window);
+
+        if (!xId) {
+            log(`Failed to find XId for window "${window.get_title()}" from X client`);
+            return null;
+        }
+
+        // Only track windows which have a title bar
+        if (getMotifHints(xId) !== MOTIF_HINTS_TITLE_BAR) {
+            return null;
+        }
+
+        return xId;
     }
 }
 
-class Listener {
-    constructor(target, event, callback) {
-        this.target = target;
-        this.event = event;
-        this.callback = callback;
+function connectDeferred(target, event, callback) {
+    let isDisconnected = false;
 
-        this._connection = null;
-    }
+    const id = target.connect(event, (_target, ...args) => {
+        defer(() => {
+            // Don't do anything if we were disconnected while waiting for idle
+            if (isDisconnected) {
+                return;
+            }
 
-    enable() {
-        const { target, event, callback } = this;
-        
-        if (this._connection) {
-            throw new Error(`Already connected to ${this.event}`);
-        }
-
-        let connection;
-        
-        const id = target.connect(event, (_target, ...args) => {
-            defer(() => {
-                // Make sure the callback is still valid to run.
-                if (connection !== this._connection) {
-                    return;
-                }
-
-                callback.call(target, ...args);
-            });
+            callback.call(target, ...args);
         });
+    });
 
-        connection = Object.freeze({
-            target,
-            id,
-        });
-        
-        this._connection = connection;
-    }
+    return {
+        disconnect() {
+            if (isDisconnected) {
+                return;
+            }
 
-    disable() {
-        if (!this._connection) {
-            throw new Error(`Not connected to ${this.event}`);
+            target.disconnect(id);
+            isDisconnected = true;
         }
-
-        const { target, id } = this._connection;
-        target.disconnect(id);
-
-        this._connection = null;
-    }
+    };
 }
 
 function defer(callback) {
@@ -193,118 +158,67 @@ function defer(callback) {
 const XID_REGEXP = /0x[0-9a-f]+/;
 
 function findXIdForWindow(window) {
-    try {
-        const description = window.get_description();
-        const match = description.match(XID_REGEXP);
-        return match && match[0];
-    } catch (_) {
-        return null;
-    }
+    const description = window.get_description();
+    const match = description.match(XID_REGEXP);
+    return match && match[0];
 }
 
-const DECOR_HINT_NONE = 0;
-const DECOR_HINT_TITLE_BAR = 1;
-
-function getTitleBar(xId) {
-    const decorHint = getDecorHint(xId);
-    return (decorHint === DECOR_HINT_TITLE_BAR);
-}
-
-function setTitleBar(xId, value) {
-    if (value) {
-        setDecorHint(xId, DECOR_HINT_TITLE_BAR);
-    } else {
-        setDecorHint(xId, DECOR_HINT_NONE);
-    }
-}
-
-const DECOR_HINT_OFFSET = 2;
-
-function getDecorHint(xId) {
-    const wmHints = getHints(xId);
-    return wmHints && wmHints[DECOR_HINT_OFFSET];
-}
-
-function setDecorHint(xId, value) {
-    const wmHints = getHints(xId);
-
-    if (!wmHints || wmHints[DECOR_HINT_OFFSET] === value) {
-        return;
-    }
-
-    wmHints[DECOR_HINT_OFFSET] = value;
-    setHints(xId, wmHints);
-}
-
-
-const HINTS_PROP = '_MOTIF_WM_HINTS';
-const HINTS_TYPE = '32cccic';
-
-const HINTS_FORMAT_ARGS = [
-    '-f', HINTS_PROP, HINTS_TYPE,
+const MOTIF_HINTS_PROP = '_MOTIF_WM_HINTS';
+const MOTIF_HINTS_FORMAT_ARGS = [
+    '-f', MOTIF_HINTS_PROP, '32c',
 ];
 
-function getHints(xId) {
-    const output =
-        runCommand(
-            '-id', xId,
-            ...HINTS_FORMAT_ARGS,
-            '-notype',
-            HINTS_PROP,
-        );
+function getMotifHints(xId) {
+    const command = [
+        'xprop',
+        '-id', xId,
+        ...MOTIF_HINTS_FORMAT_ARGS,
+        '-notype',
+        MOTIF_HINTS_PROP,
+    ];             
 
-    if (!output) {
-        return null;
-    }
-
-    const [name, rawValue] = output.split(' = ', 2);
-
-    // make sure that we got the correct property
-    if (name !== HINTS_PROP) {
-        return null;
-    }
-
-    const value = [];
-
-    for (const rawPart of rawValue.split(', ')) {
-        const part = Number(rawPart);
-
-        // make sure we parsed the output correctly
-        if (!Number.isSafeInteger(part)) {
-            return null;
-        }
-
-        value.push(part);
-    }
-
-    return value;
-}
-
-function setHints(xid, value) {
-    const rawValue = value.join(', ');
-
-    runCommand(
-        '-id', xid,
-        ...HINTS_FORMAT_ARGS,
-        '-set', HINTS_PROP, rawValue,
-    );
-
-    return true;
-}
-
-function runCommand(...args) {
     const [isOk, stdout, _stderr, exitCode] =
         GLib.spawn_sync(
             null,                           // inherit cwd
-            ['xprop', ...args],             // command to run
+            command,                        // command to run
             null,                           // inherit env
             GLib.SpawnFlags.SEARCH_PATH,    // search the path
             null,                           // no setup func before `exec`
         );
 
-    if (isOk && exitCode === 0) {
-        return byteArray.toString(stdout);
-    } else {
-        throw new Error(`xprop command failed: xprop ${args.join(' ')}`);
+    if (!isOk || exitCode !== 0) {
+        return null;
     }
+
+    const output = byteArray.toString(stdout);
+
+    if (!output) {
+        return null;
+    }
+
+    const [name, motifHints] = output.split(' = ', 2);
+
+    // make sure that we got the correct property
+    if (name !== MOTIF_HINTS_PROP) {
+        return null;
+    }
+
+    return motifHints.trim();
+}
+
+function setMotifHints(xId, motifHints) {
+    const command = [
+        'xprop',
+        '-id', xId,
+        ...MOTIF_HINTS_FORMAT_ARGS,
+        '-set', MOTIF_HINTS_PROP, motifHints,
+    ]; 
+
+    GLib.spawn_sync(
+        null,                           // inherit cwd
+        command,                        // command to run
+        null,                           // inherit env
+        GLib.SpawnFlags.SEARCH_PATH,    // search the path
+        null,                           // no setup func before `exec`
+    );
 }
