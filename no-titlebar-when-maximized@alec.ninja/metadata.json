@@ -1,0 +1,10 @@
+{
+  "name": "No Titlebar When Maximized",
+  "description": "Hide the titlebar of maximized windows",
+  "url": "https://github.com/alecdotninja/no-titlebar-when-maximized",
+  "uuid": "no-titlebar-when-maximized@alec.ninja",
+  "shell-version": [
+    "41"
+  ],
+  "version": 1
+}
