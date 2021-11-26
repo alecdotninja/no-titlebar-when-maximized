@@ -14,6 +14,8 @@ The extension can also be installed manually by copying the `no-titlebar-when-ma
 
 For information on [creating](https://gjs.guide/extensions/development/creating.html) and [debugging](https://gjs.guide/extensions/development/debugging.html) a GNOME extension, see [the official documentation](https://gjs.guide/extensions).
 
+`script/build.sh` can be used to create a zip file suitable for [submission to GNOME](https://extensions.gnome.org/upload/). `script/install.sh` can be used to install the extention locally for testing.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on [GitHub](https://github.com/alecdotninja/no-titlebar-when-maximized).
