@@ -6,7 +6,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint ./**/*.js",
-    "build": "gnome-extensions pack --force ."
+    "build": "gnome-extensions pack --force .",
+    "install": "mkdir -p ~/.local/share/gnome-shell/extensions/no-titlebar-when-maximized@alec.ninja && cp extension.js metadata.json ~/.local/share/gnome-shell/extensions/no-titlebar-when-maximized@alec.ninja"
   },
   "repository": {
     "type": "git",

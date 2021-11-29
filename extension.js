@@ -11,7 +11,7 @@ const MOTIF_HINTS_NO_TITLE_BAR = "2, 0, 0, 0, 0";
 
 class Extension {
   enable() {
-    this._trackedXIds = new WeakMap();
+    this._xWindows = new WeakMap();
 
     this._createdConnection = connectDeferred(
       global.display,
@@ -39,7 +39,7 @@ class Extension {
     });
 
     // Reset all state
-    this._trackedXIds = null;
+    this._xWindows = null;
     this._createdConnection = null;
     this._changedConnection = null;
   }
@@ -55,64 +55,53 @@ class Extension {
   }
 
   _sync(window) {
-    const xId = this._trackedXId(window);
+    const xWindow = this._xWindow(window);
 
-    if (!xId) {
+    if (!xWindow) {
       return;
     }
 
     if (window.get_maximized()) {
-      setMotifHints(xId, MOTIF_HINTS_NO_TITLE_BAR);
+      xWindow.setMotifHints(MOTIF_HINTS_NO_TITLE_BAR);
     } else {
-      setMotifHints(xId, MOTIF_HINTS_TITLE_BAR);
+      xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
     }
   }
 
   _restore(window) {
-    const xId = this._trackedXId(window, false);
+    const xWindow = this._xWindow(window, false);
 
-    if (!xId) {
+    if (!xWindow) {
       return;
     }
 
     // This is the original state of the tracked window
-    setMotifHints(xId, MOTIF_HINTS_TITLE_BAR);
+    xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
   }
 
-  _trackedXId(window, buildMissing = true) {
-    let xId = this._trackedXIds.get(window);
+  _xWindow(window, buildMissing = true) {
+    let xWindow = this._xWindows.get(window);
 
-    if (xId === undefined && buildMissing) {
-      xId = this._buildTrackedXId(window);
-      this._trackedXIds.set(window, xId);
+    if (xWindow === undefined && buildMissing) {
+      xWindow = this._buildXWindow(window);
+      this._xWindows.set(window, xWindow);
     }
 
-    return xId;
+    return xWindow;
   }
 
-  _buildTrackedXId(window) {
+  _buildXWindow(window) {
+    const xWindow = XWindow.forWindow(window);
+
     if (
-      window.get_client_type() !== WindowClientType.X11 ||
-      window.get_window_type() !== WindowType.NORMAL
+      !xWindow ||
+      // Only track windows which have a title bar
+      xWindow.motifHints !== MOTIF_HINTS_TITLE_BAR
     ) {
       return null;
     }
 
-    const xId = findXIdForWindow(window);
-
-    if (!xId) {
-      log(
-        `Failed to find XId for window "${window.get_title()}" from X client`
-      );
-      return null;
-    }
-
-    // Only track windows which have a title bar
-    if (getMotifHints(xId) !== MOTIF_HINTS_TITLE_BAR) {
-      return null;
-    }
-
-    return xId;
+    return xWindow;
   }
 }
 
@@ -153,6 +142,37 @@ function defer(callback) {
     // Always remove from the event loop.
     return false;
   });
+}
+
+class XWindow {
+  static forWindow(window) {
+    if (
+      window.get_client_type() !== WindowClientType.X11 ||
+      window.get_window_type() !== WindowType.NORMAL
+    ) {
+      return null;
+    }
+
+    const xId = findXIdForWindow(window);
+    return xId && new XWindow(xId);
+  }
+
+  constructor(xId) {
+    this.xId = xId;
+    this._motifHints = getMotifHints(xId);
+  }
+
+  get motifHints() {
+    return this._motifHints;
+  }
+
+  setMotifHints(motifHints) {
+    if (this._motifHints !== motifHints) {
+      setMotifHints(this.xId, motifHints);
+    }
+
+    this._motifHints = motifHints;
+  }
 }
 
 const XID_REGEXP = /0x[0-9a-f]+/;
@@ -215,7 +235,7 @@ function setMotifHints(xId, motifHints) {
     motifHints,
   ];
 
-  GLib.spawn_sync(
+  GLib.spawn_async(
     null, // inherit cwd
     command, // command to run
     null, // inherit env

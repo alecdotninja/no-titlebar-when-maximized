@@ -18,7 +18,7 @@
 
 For information on [creating](https://gjs.guide/extensions/development/creating.html) and [debugging](https://gjs.guide/extensions/development/debugging.html) a GNOME extension, see [the official documentation](https://gjs.guide/extensions).
 
-Dependencies for this project are managed using [npm](https://www.npmjs.com/). To format the code, run `npm run format`. To lint the code, run `npm run lint`. To create a zip file suitable for [submission to GNOME](https://extensions.gnome.org/upload/) or [local installation](https://linuxconfig.org/how-to-install-gnome-shell-extensions-from-zip-file-using-command-line-on-ubuntu-18-04-bionic-beaver-linux), run `npm run build`.
+Dependencies for this project are managed using [npm](https://www.npmjs.com/). To format the code, run `npm run format`. To lint the code, run `npm run lint`. To install the extention locally, run `npm run install`. To create a zip file suitable for [submission to GNOME Extentions](https://extensions.gnome.org/upload/), run `npm run build`.
 
 ## Contributing
 
