@@ -1,5 +1,7 @@
 # No Titlebar When Maximized
 
+[<img src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg" height="100" align="right">](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/)
+
 [No Titlebar When Maximized](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/) is a GNOME Shell extension to hide the classic title bar of maximized X.Org windows. It is a rewrite of [Pixel Saver](https://github.com/pixel-saver/pixel-saver) with a focus on simplification. In particular, it does *not* modify the core shell UI.
 
 **It requires [the `xprop` command](https://command-not-found.com/xprop) to be installed in order to function.**
@@ -8,9 +10,9 @@
 
 ## Installation
 
-The preferred method for installing No Titlebar When Maximized is via [the GNOME Shell Extensions web interface](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/) or [the Software application](https://linuxhint.com/install_gnome_shell_extensions_linux/). 
-
-The extension can also be installed manually by copying the `no-titlebar-when-maximized@alec.ninja` directory to `~/.local/share/gnome-shell/extensions`, restarting GNOME Shell, and running `gnome-extensions enable no-titlebar-when-maximized@alec.ninja`.
+1. Install [the `xprop` command](https://command-not-found.com/xprop).
+2. Open [No Titlebar When Maximized](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/) on the GNOME Shell Extentions website.
+3. Toggle the slider to the "On" position.
 
 ## Development
 
