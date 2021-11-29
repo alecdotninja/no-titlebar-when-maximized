@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint ./**/*.js",
     "build": "gnome-extensions pack --force ."
   },
