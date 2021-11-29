@@ -1,1 +1,2 @@
-no-titlebar-when-maximized@alec.ninja.zip
+node_modules/*
+*.zip

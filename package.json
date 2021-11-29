@@ -1,0 +1,46 @@
+{
+  "name": "no-titlebar-when-maximized",
+  "description": "Hides the classic title bar of maximized X.Org windows",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint ./**/*.js",
+    "build": "gnome-extensions pack --force ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alecdotninja/no-titlebar-when-maximized.git"
+  },
+  "author": "Alec Larsen <hello@alec.ninja>",
+  "license": "GPL-2.0-or-later",
+  "bugs": {
+    "url": "https://github.com/alecdotninja/no-titlebar-when-maximized/issues"
+  },
+  "homepage": "https://github.com/alecdotninja/no-titlebar-when-maximized#readme",
+  "devDependencies": {
+    "eslint": "^8.3.0",
+    "eslint-config-prettier": "^8.3.0",
+    "prettier": "2.5.0"
+  },
+  "eslintConfig": {
+    "extends": "prettier",
+    "globals": {
+      "imports": false
+    },
+    "rules": {
+      "no-unused-vars": [
+        "error",
+        {
+          "varsIgnorePattern": "^init$|^_"
+        }
+      ]
+    },
+    "parserOptions": {
+      "ecmaVersion": 2017
+    },
+    "env": {
+      "es6": true,
+      "node": false
+    }
+  }
+}
