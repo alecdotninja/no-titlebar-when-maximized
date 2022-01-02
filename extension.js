@@ -159,7 +159,7 @@ class XWindow {
 
   constructor(xId) {
     this.xId = xId;
-    this._motifHints = getMotifHints(xId);
+    this._motifHints = getMotifHints(xId) || MOTIF_HINTS_TITLE_BAR;
   }
 
   get motifHints() {
