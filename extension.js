@@ -56,6 +56,11 @@ class Extension {
   }
 
   _sync(window) {
+    if (!window) {
+      log("possible bug: attempted to sync without window; ignoring for now");
+      return;
+    }
+
     const xWindow = this._xWindow(window);
 
     if (!xWindow) {
@@ -70,6 +75,11 @@ class Extension {
   }
 
   _restore(window) {
+    if (!window) {
+      log("possible bug: attempted to restore without window; ignoring for now");
+      return;
+    }
+
     const xWindow = this._xWindow(window, false);
 
     if (!xWindow) {
