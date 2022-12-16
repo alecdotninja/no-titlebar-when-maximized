@@ -23,7 +23,19 @@ Dependencies for this project are managed using [npm](https://www.npmjs.com/):
 - To format the code, run **`npm run format`**.
 - To lint the code, run **`npm run lint`**.
 - To create a zip file suitable for [submission to GNOME Extentions](https://extensions.gnome.org/upload/), run **`npm run build`**.
-- To install the extention locally, build the extention then run **`npm run dev-install`**.
+
+### Workflow
+
+Unfortunately, this extention does not work correctly in [a nested session](https://wiki.gnome.org/Initiatives/Wayland/GnomeShell/Testing#Running_nested_as_a_subcompositor). Here is the workflow that I use for development:
+
+1. If the extension is already installed, uninstall it (`npm run uninstall`).
+2. Increment [the `version` number in `metadata.json`](https://github.com/alecdotninja/no-titlebar-when-maximized/blob/main/metadata.json#L7).
+3. Build the extension with any local changes (`npm run build`) and install that local build (`npm run install-local`).
+4. Restart GNOME Shell. On Wayland, this requires logging out and logging back in.
+5. Perform any testing. On systemd-based distros, you can tail the logs with `journalctl /usr/bin/gnome-shell -f`.
+6. Repeat steps 3 through 5 until things are working as expected. I find it is helpful to format (`npm run format`) and lint (`npm run lint`) as I go so that my local build is ready for submission.
+7. [Submit](https://extensions.gnome.org/upload/) the local build to GNOME Extentions.
+8. After approval, uninstall the local build (`npm run uninstall`) and reinstall from [GNOME Extentions](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/).
 
 ## Contributing
 
