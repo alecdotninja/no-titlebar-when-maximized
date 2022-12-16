@@ -7,7 +7,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "build": "gnome-extensions pack --force .",
-    "install": "gnome-extensions install --force ./no-titlebar-when-maximized@alec.ninja.shell-extension.zip",
+    "dev-install": "gnome-extensions install --force ./no-titlebar-when-maximized@alec.ninja.shell-extension.zip",
     "uninstall": "gnome-extensions uninstall no-titlebar-when-maximized@alec.ninja"
   },
   "repository": {

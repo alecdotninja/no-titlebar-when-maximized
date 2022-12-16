@@ -76,7 +76,9 @@ class Extension {
 
   _restore(window) {
     if (!window) {
-      log("possible bug: attempted to restore without window; ignoring for now");
+      log(
+        "possible bug: attempted to restore without window; ignoring for now"
+      );
       return;
     }
 

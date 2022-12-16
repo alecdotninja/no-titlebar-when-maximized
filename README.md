@@ -23,7 +23,7 @@ Dependencies for this project are managed using [npm](https://www.npmjs.com/):
 - To format the code, run **`npm run format`**.
 - To lint the code, run **`npm run lint`**.
 - To create a zip file suitable for [submission to GNOME Extentions](https://extensions.gnome.org/upload/), run **`npm run build`**.
-- To install the extention locally, build the extention then run **`npm run install`**.
+- To install the extention locally, build the extention then run **`npm run dev-install`**.
 
 ## Contributing
 
