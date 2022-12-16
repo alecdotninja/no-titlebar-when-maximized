@@ -2,6 +2,7 @@ const GLib = imports.gi.GLib;
 const { byteArray, mainloop } = imports;
 const { WindowClientType, WindowType } = imports.gi.Meta;
 
+/* exported init */
 function init() {
   return new Extension();
 }
@@ -196,7 +197,7 @@ function getMotifHints(xId) {
     MOTIF_HINTS_PROP,
   ];
 
-  const [isOk, stdout, _stderr, exitCode] = GLib.spawn_sync(
+  const [isOk, stdout, , exitCode] = GLib.spawn_sync(
     null, // inherit cwd
     command, // command to run
     null, // inherit env

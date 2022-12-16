@@ -5,7 +5,7 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint ./**/*.js",
+    "lint": "eslint .",
     "build": "gnome-extensions pack --force .",
     "install": "mkdir -p ~/.local/share/gnome-shell/extensions/no-titlebar-when-maximized@alec.ninja && cp extension.js metadata.json ~/.local/share/gnome-shell/extensions/no-titlebar-when-maximized@alec.ninja"
   },
@@ -25,17 +25,15 @@
     "prettier": "2.5.0"
   },
   "eslintConfig": {
-    "extends": "prettier",
+    "extends": [
+      "eslint:recommended",
+      "prettier"
+    ],
     "globals": {
-      "imports": false
-    },
-    "rules": {
-      "no-unused-vars": [
-        "error",
-        {
-          "varsIgnorePattern": "^init$|^_"
-        }
-      ]
+      "global": "readonly",
+      "imports": "readonly",
+      "log": "readonly",
+      "logError": "readonly"
     },
     "parserOptions": {
       "ecmaVersion": 2017
