@@ -12,13 +12,18 @@
 
 1. Install [the `xprop` command](https://command-not-found.com/xprop).
 2. Open [No Titlebar When Maximized](https://extensions.gnome.org/extension/4630/no-titlebar-when-maximized/) on the GNOME Shell Extentions website.
-3. Toggle the slider to the "On" position.
+3. Toggle the slider to the on position.
 
 ## Development
 
 For information on [creating](https://gjs.guide/extensions/development/creating.html) and [debugging](https://gjs.guide/extensions/development/debugging.html) a GNOME extension, see [the official documentation](https://gjs.guide/extensions).
 
-Dependencies for this project are managed using [npm](https://www.npmjs.com/). To format the code, run `npm run format`. To lint the code, run `npm run lint`. To install the extention locally, run `npm run install`. To create a zip file suitable for [submission to GNOME Extentions](https://extensions.gnome.org/upload/), run `npm run build`.
+Dependencies for this project are managed using [npm](https://www.npmjs.com/):
+
+* To format the code, run **`npm run format`**.
+* To lint the code, run **`npm run lint`**.
+* To create a zip file suitable for [submission to GNOME Extentions](https://extensions.gnome.org/upload/), run **`npm run build`**.
+* To install the extention locally, build the extention then run **`npm run install`**. 
 
 ## Contributing
 
