@@ -12,21 +12,30 @@ const MOTIF_HINTS_NO_TITLE_BAR = "2, 0, 0, 0, 0";
 
 class Extension {
   enable() {
-    this._xWindows = new WeakMap();
+    this._initialMotifHints = new Map();
+    this._currentMotifHints = new Map();
 
-    this._createdConnection = connectDeferred(
+    this._createdConnection = connectDebounced(
       global.display,
       "window-created",
       (window) => this._sync(window)
     );
 
-    this._changedConnection = connectDeferred(
+    this._changedConnection = connectDebounced(
       global.window_manager,
       "size-changed",
-      (actor) => this._sync(actor.get_meta_window())
+      (actor) => {
+        const window = actor.get_meta_window();
+
+        if (!window) {
+          return;
+        }
+
+        this._sync(window);
+      }
     );
 
-    this._forEachWindow((window) => {
+    forEachWindow((window) => {
       this._sync(window);
     });
   }
@@ -35,100 +44,107 @@ class Extension {
     this._createdConnection.disconnect();
     this._changedConnection.disconnect();
 
-    this._forEachWindow((window) => {
+    forEachWindow((window) => {
       this._restore(window);
     });
 
     // Reset all state
-    this._xWindows = null;
+    this._initialMotifHints = null;
+    this._currentMotifHints = null;
     this._createdConnection = null;
     this._changedConnection = null;
   }
 
-  _forEachWindow(callback) {
-    for (const actor of global.get_window_actors()) {
-      try {
-        callback(actor.get_meta_window());
-      } catch (error) {
-        logError(error);
-      }
-    }
-  }
-
   _sync(window) {
-    if (!window) {
-      log("possible bug: attempted to sync without window; ignoring for now");
-      return;
-    }
+    const xId = getXIdForWindow(window);
 
-    const xWindow = this._xWindow(window);
-
-    if (!xWindow) {
+    if (!xId || this._getInitialMotifHints(xId) !== MOTIF_HINTS_TITLE_BAR) {
       return;
     }
 
     if (window.get_maximized()) {
-      xWindow.setMotifHints(MOTIF_HINTS_NO_TITLE_BAR);
+      this._setMotifHints(xId, MOTIF_HINTS_NO_TITLE_BAR);
     } else {
-      xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
+      this._setMotifHints(xId, MOTIF_HINTS_TITLE_BAR);
     }
   }
 
   _restore(window) {
-    if (!window) {
-      log(
-        "possible bug: attempted to restore without window; ignoring for now"
-      );
+    const xId = getXIdForWindow(window);
+
+    if (!xId) {
       return;
     }
 
-    const xWindow = this._xWindow(window, false);
+    const initialMotifHints = this._initialMotifHints.get(xId);
 
-    if (!xWindow) {
-      return;
+    if (initialMotifHints) {
+      this._setMotifHints(xId, initialMotifHints);
     }
-
-    // This is the original state of the tracked window
-    xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
   }
 
-  _xWindow(window, buildMissing = true) {
-    let xWindow = this._xWindows.get(window);
+  _getInitialMotifHints(xId) {
+    let initialMotifHints = this._initialMotifHints.get(xId);
 
-    if (xWindow === undefined && buildMissing) {
-      xWindow = this._buildXWindow(window);
-      this._xWindows.set(window, xWindow);
+    if (initialMotifHints === undefined) {
+      initialMotifHints = this._getMotifHints(xId);
+      this._initialMotifHints.set(xId, initialMotifHints);
     }
 
-    return xWindow;
+    return initialMotifHints;
   }
 
-  _buildXWindow(window) {
-    const xWindow = XWindow.forWindow(window);
+  _getMotifHints(xId) {
+    let motifHints = this._currentMotifHints.get(xId);
 
-    if (
-      !xWindow ||
-      // Only track windows which have a title bar
-      xWindow.motifHints !== MOTIF_HINTS_TITLE_BAR
-    ) {
-      return null;
+    if (motifHints === undefined) {
+      motifHints = getMotifHints(xId);
+      this._currentMotifHints.set(xId, motifHints);
     }
 
-    return xWindow;
+    return motifHints;
+  }
+
+  _setMotifHints(xId, newMotifHints) {
+    let currentMotifHints = this._currentMotifHints.get(xId);
+
+    if (currentMotifHints === undefined) {
+      log(`bug: setting _MOTIF_WM_HINTS of ${xId} before reading it`);
+    }
+
+    if (currentMotifHints !== newMotifHints) {
+      this._currentMotifHints.set(xId, newMotifHints);
+      setMotifHints(xId, newMotifHints);
+    }
   }
 }
 
-function connectDeferred(target, event, callback) {
+function forEachWindow(callback) {
+  for (const actor of global.get_window_actors()) {
+    try {
+      const window = actor.get_meta_window();
+
+      if (!window) {
+        return;
+      }
+
+      callback();
+    } catch (error) {
+      logError(error);
+    }
+  }
+}
+
+function connectDebounced(source, event, callback) {
   let isDisconnected = false;
 
-  const id = target.connect(event, (_target, ...args) => {
-    defer(() => {
-      // Don't do anything if we were disconnected while waiting for idle
+  const id = source.connect(event, (_source, target) => {
+    waitForIdleDebounced(target, () => {
       if (isDisconnected) {
         return;
       }
 
-      callback.call(target, ...args);
+      callback(target);
     });
   });
 
@@ -138,13 +154,31 @@ function connectDeferred(target, event, callback) {
         return;
       }
 
-      target.disconnect(id);
+      source.disconnect(id);
       isDisconnected = true;
     },
   };
 }
 
-function defer(callback) {
+const debounceKeysWaitingForIdle = new WeakSet();
+
+function waitForIdleDebounced(debounceKey, callback) {
+  if (debounceKeysWaitingForIdle.has(debounceKey)) {
+    return;
+  }
+
+  debounceKeysWaitingForIdle.add(debounceKey);
+
+  waitForIdle(() => {
+    if (!debounceKeysWaitingForIdle.delete(debounceKey)) {
+      return;
+    }
+
+    callback();
+  });
+}
+
+function waitForIdle(callback) {
   mainloop.idle_add(() => {
     try {
       callback();
@@ -152,54 +186,52 @@ function defer(callback) {
       logError(error);
     }
 
-    // Always remove from the event loop.
+    // Always, always, always remove this function from the event loop!
     return false;
   });
 }
 
-class XWindow {
-  static forWindow(window) {
-    if (
-      window.get_client_type() !== WindowClientType.X11 ||
-      window.get_window_type() !== WindowType.NORMAL
-    ) {
-      return null;
-    }
+const xIdCache = new WeakMap();
 
-    const xId = findXIdForWindow(window);
-    return xId && new XWindow(xId);
+function getXIdForWindow(window) {
+  let xId = xIdCache.get(window);
+
+  if (xId === undefined) {
+    xId = findXIdForWindow(window);
+    xIdCache.set(window, xId);
   }
 
-  constructor(xId) {
-    this.xId = xId;
-    this._motifHints = getMotifHints(xId) || MOTIF_HINTS_TITLE_BAR;
-  }
-
-  get motifHints() {
-    return this._motifHints;
-  }
-
-  setMotifHints(motifHints) {
-    if (this._motifHints !== motifHints) {
-      setMotifHints(this.xId, motifHints);
-    }
-
-    this._motifHints = motifHints;
-  }
+  return xId;
 }
 
 const XID_REGEXP = /0x[0-9a-f]+/;
 
 function findXIdForWindow(window) {
+  if (
+    window.get_client_type() !== WindowClientType.X11 ||
+    window.get_window_type() !== WindowType.NORMAL
+  ) {
+    return null;
+  }
+
   const description = window.get_description();
   const match = description.match(XID_REGEXP);
-  return match && match[0];
+
+  if (!match) {
+    return null;
+  }
+
+  return match[0];
 }
 
 const MOTIF_HINTS_PROP = "_MOTIF_WM_HINTS";
 const MOTIF_HINTS_FORMAT_ARGS = ["-f", MOTIF_HINTS_PROP, "32c"];
 
 function getMotifHints(xId) {
+  log(
+    `expensive: reading _MOTIF_WM_HINTS for ${xId} (This should only happen once per window when it is created!)`
+  );
+
   const command = [
     "xprop",
     "-id",
@@ -222,11 +254,6 @@ function getMotifHints(xId) {
   }
 
   const output = byteArray.toString(stdout);
-
-  if (!output) {
-    return null;
-  }
-
   const [name, motifHints] = output.split(" = ", 2);
 
   // make sure that we got the correct property
@@ -238,6 +265,10 @@ function getMotifHints(xId) {
 }
 
 function setMotifHints(xId, motifHints) {
+  log(
+    `expensive: updating _MOTIF_WM_HINTS of ${xId} (This should only happen once each time the window is maximized/restored!)`
+  );
+
   const command = [
     "xprop",
     "-id",
