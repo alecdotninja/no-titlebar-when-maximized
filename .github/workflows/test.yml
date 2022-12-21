@@ -6,13 +6,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Checkout Revision
+        uses: actions/checkout@v2
+
+      - name: Install APT Packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
           packages: nodejs gnome-shell-extensions
 
-      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "*"
+          cache: npm
 
-      - name: Install dependencies
+      - name: Install Node Packages
         run: npm ci
 
       - name: Format
