@@ -128,7 +128,7 @@ function forEachWindow(callback) {
         return;
       }
 
-      callback();
+      callback(window);
     } catch (error) {
       logError(error);
     }
