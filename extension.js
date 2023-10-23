@@ -1,6 +1,6 @@
-const GLib = imports.gi.GLib;
+import GLib from "gi://GLib";
 const { byteArray, mainloop } = imports;
-const { WindowClientType, WindowType } = imports.gi.Meta;
+import Meta from "gi://Meta";
 
 /* exported init */
 function init() {
@@ -10,7 +10,7 @@ function init() {
 const MOTIF_HINTS_TITLE_BAR = "2, 0, 1, 0, 0";
 const MOTIF_HINTS_NO_TITLE_BAR = "2, 0, 0, 0, 0";
 
-class Extension {
+export default class Extension {
   enable() {
     this._xWindows = new WeakMap();
 
@@ -160,8 +160,8 @@ function defer(callback) {
 class XWindow {
   static forWindow(window) {
     if (
-      window.get_client_type() !== WindowClientType.X11 ||
-      window.get_window_type() !== WindowType.NORMAL
+      window.get_client_type() !== Meta.WindowClientType.X11 ||
+      window.get_window_type() !== Meta.WindowType.NORMAL
     ) {
       return null;
     }
