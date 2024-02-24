@@ -1,29 +1,24 @@
 import GLib from "gi://GLib";
-const { byteArray, mainloop } = imports;
 import Meta from "gi://Meta";
-
-/* exported init */
-function init() {
-  return new Extension();
-}
+import { Extension } from "resource:///org/gnome/shell/extensions/extension.js";
 
 const MOTIF_HINTS_TITLE_BAR = "2, 0, 1, 0, 0";
 const MOTIF_HINTS_NO_TITLE_BAR = "2, 0, 0, 0, 0";
 
-export default class Extension {
+export default class NoTitleBarWhenMaximizedExtension extends Extension {
   enable() {
     this._xWindows = new WeakMap();
 
-    this._createdConnection = connectDeferred(
-      global.display,
+    this._createdConnection = global.display.connect(
       "window-created",
-      (window) => this._sync(window)
+      (_, window) => this._sync(window)
     );
 
-    this._changedConnection = connectDeferred(
-      global.window_manager,
+    this._changedConnection = global.window_manager.connect(
       "size-changed",
-      (actor) => this._sync(actor.get_meta_window())
+      (_, actor) => {
+        this._sync(actor.get_meta_window());
+      }
     );
 
     this._forEachWindow((window) => {
@@ -32,8 +27,8 @@ export default class Extension {
   }
 
   disable() {
-    this._createdConnection.disconnect();
-    this._changedConnection.disconnect();
+    global.display.disconnect(this._createdConnection);
+    global.window_manager.disconnect(this._changedConnection);
 
     this._forEachWindow((window) => {
       this._restore(window);
@@ -57,7 +52,7 @@ export default class Extension {
 
   _sync(window) {
     if (!window) {
-      log("possible bug: attempted to sync without window; ignoring for now");
+      console.warn("possible bug: attempted to sync without window");
       return;
     }
 
@@ -76,9 +71,7 @@ export default class Extension {
 
   _restore(window) {
     if (!window) {
-      log(
-        "possible bug: attempted to restore without window; ignoring for now"
-      );
+      console.warn("possible bug: attempted to restore without window");
       return;
     }
 
@@ -116,45 +109,6 @@ export default class Extension {
 
     return xWindow;
   }
-}
-
-function connectDeferred(target, event, callback) {
-  let isDisconnected = false;
-
-  const id = target.connect(event, (_target, ...args) => {
-    defer(() => {
-      // Don't do anything if we were disconnected while waiting for idle
-      if (isDisconnected) {
-        return;
-      }
-
-      callback.call(target, ...args);
-    });
-  });
-
-  return {
-    disconnect() {
-      if (isDisconnected) {
-        return;
-      }
-
-      target.disconnect(id);
-      isDisconnected = true;
-    },
-  };
-}
-
-function defer(callback) {
-  mainloop.idle_add(() => {
-    try {
-      callback();
-    } catch (error) {
-      logError(error);
-    }
-
-    // Always remove from the event loop.
-    return false;
-  });
 }
 
 class XWindow {
@@ -199,6 +153,8 @@ function findXIdForWindow(window) {
 const MOTIF_HINTS_PROP = "_MOTIF_WM_HINTS";
 const MOTIF_HINTS_FORMAT_ARGS = ["-f", MOTIF_HINTS_PROP, "32c"];
 
+const textDecoder = new TextDecoder();
+
 function getMotifHints(xId) {
   const command = [
     "xprop",
@@ -221,7 +177,7 @@ function getMotifHints(xId) {
     return null;
   }
 
-  const output = byteArray.toString(stdout);
+  const output = textDecoder.decode(stdout);
 
   if (!output) {
     return null;
