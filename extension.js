@@ -153,8 +153,6 @@ function findXIdForWindow(window) {
 const MOTIF_HINTS_PROP = "_MOTIF_WM_HINTS";
 const MOTIF_HINTS_FORMAT_ARGS = ["-f", MOTIF_HINTS_PROP, "32c"];
 
-const textDecoder = new TextDecoder();
-
 function getMotifHints(xId) {
   const command = [
     "xprop",
@@ -177,6 +175,7 @@ function getMotifHints(xId) {
     return null;
   }
 
+  const textDecoder = new TextDecoder();
   const output = textDecoder.decode(stdout);
 
   if (!output) {
