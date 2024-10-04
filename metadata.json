@@ -5,5 +5,5 @@
   "uuid": "no-titlebar-when-maximized@alec.ninja",
   "shell-version": ["45", "46", "47"],
   "session-modes" : ["user", "unlock-dialog"],
-  "version": 16
+  "version": 17
 }
