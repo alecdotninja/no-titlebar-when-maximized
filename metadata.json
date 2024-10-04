@@ -4,5 +4,6 @@
   "url": "https://github.com/alecdotninja/no-titlebar-when-maximized",
   "uuid": "no-titlebar-when-maximized@alec.ninja",
   "shell-version": ["45", "46", "47"],
+  "session-modes" : ["user", "unlock-dialog"],
   "version": 16
 }
