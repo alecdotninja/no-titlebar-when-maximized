@@ -62,7 +62,7 @@ export default class NoTitleBarWhenMaximizedExtension extends Extension {
       return;
     }
 
-    if (window.get_maximized()) {
+    if (window.is_maximized()) {
       xWindow.setMotifHints(MOTIF_HINTS_NO_TITLE_BAR);
     } else {
       xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
