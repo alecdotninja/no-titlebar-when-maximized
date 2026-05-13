@@ -62,7 +62,7 @@ export default class NoTitleBarWhenMaximizedExtension extends Extension {
       return;
     }
 
-    if (window.is_maximized()) {
+    if (isWindowMaximized(window)) {
       xWindow.setMotifHints(MOTIF_HINTS_NO_TITLE_BAR);
     } else {
       xWindow.setMotifHints(MOTIF_HINTS_TITLE_BAR);
@@ -140,6 +140,17 @@ class XWindow {
 
     this._motifHints = motifHints;
   }
+}
+
+// Mutter renamed `get_maximized()` to `is_maximized()` in
+// https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4415 (GNOME 47+).
+// GNOME Shell 46 still ships the older API, so feature-detect.
+function isWindowMaximized(window) {
+  if (typeof window.is_maximized === "function") {
+    return window.is_maximized();
+  }
+
+  return window.get_maximized() === Meta.MaximizeFlags.BOTH;
 }
 
 const XID_REGEXP = /0x[0-9a-f]+/;
